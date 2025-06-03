@@ -16,7 +16,12 @@ st.title("Gerador de Certificados")
 
 st.subheader("📄 Modelo de certificado")
 
-template_options = ["evento_3instituicoes", "modelo1", "modelo1"]
+event_type = st.radio("É um evento (Papo Geofísico, Mesa redonda) ou um Minicurso?", ["Evento", "Minicurso"], horizontal=True)
+
+if event_type == "Evento":
+    template_options = ["evento_3instituicoes"]
+else:
+    template_options = ["modelo_minicurso"]
 template = st.selectbox(
     "Selecione o modelo de certificado:",
     template_options,
@@ -43,12 +48,15 @@ if planilha:
 
 title_font = "fonts/CormorantGaramond-Bold.ttf"
 text_font = "fonts/LibreBaskerville-Bold.ttf"
+date_font = "fonts/LibreBaskerville-Regular.ttf"
 name_font = "fonts/AlexBrush-Regular.ttf"
 
 HEIGHT_EVENT = ""
 HEIGHT_MINI = ""
 
 event_name = st.text_input("Nome do Evento", value="Evento1")
+if event_type == "Minicurso":
+    professor = st.text_input("Ministrante do Minicurso/Curso", value="Professor")
 hour = st.text_input("Carga horária (ex.: 8 horas)", value="0 horas")
 locale.setlocale(locale.LC_TIME, "pt_BR.UTF-8")
 date = st.date_input(
@@ -63,10 +71,11 @@ if template and planilha:
         df = pd.read_excel(planilha)
         df = df.drop_duplicates()
         img_template = Image.open(template)
-        font_name = ImageFont.truetype(name_font, size=85)
-        font_event = ImageFont.truetype(text_font, size=55)
-        font_hour = ImageFont.truetype(text_font, size=40)
-        font_date = ImageFont.truetype(text_font, size=25)
+        name_font = ImageFont.truetype(name_font, size=85)
+        event_font = ImageFont.truetype(text_font, size=40)
+        hour_font = ImageFont.truetype(text_font, size=40)
+        date_font = ImageFont.truetype(date_font, size=25)
+        professor_font = ImageFont.truetype(text_font, size=40)
 
         certificates = []
         preview_image = None
@@ -80,8 +89,8 @@ if template and planilha:
                 draw, 
                 novo_cert, 
                 nome, 
-                font_name, 
-                424
+                name_font, 
+                375
             )
 
             # Puts the event on the template
@@ -89,16 +98,26 @@ if template and planilha:
                 draw, 
                 novo_cert, 
                 event_name, 
-                font_event, 
-                630
+                event_font, 
+                520
             )
             
+            if event_type == "Minicurso":
+                draw_bounding_box(
+                draw, 
+                novo_cert, 
+                professor, 
+                professor_font, 
+                642
+            )
+            
+            # Carga horária
             draw_bounding_box(
                 draw, 
                 novo_cert, 
                 hour, 
-                font_hour, 
-                769
+                hour_font, 
+                635 if event_type == "Evento" else 763
             )
             
             full_date = "Niterói, " + date
@@ -106,8 +125,8 @@ if template and planilha:
                 draw, 
                 novo_cert, 
                 full_date, 
-                font_date, 
-                898
+                date_font, 
+                698 if event_type == "Evento" else 826
             )
 
             certificates.append(novo_cert)
