@@ -3,6 +3,7 @@ import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 import os
 import zipfile
+from datetime import datetime
 from io import BytesIO
 import locale
 from functions import draw_bounding_box
@@ -16,7 +17,11 @@ st.title("Gerador de Certificados")
 
 st.subheader("📄 Modelo de certificado")
 
-event_type = st.radio("É um evento (Papo Geofísico, Mesa redonda) ou um Minicurso?", ["Evento", "Minicurso"], horizontal=True)
+event_type = st.radio(
+    "É um evento (Papo Geofísico, Mesa redonda) ou um Minicurso?",
+    ["Evento", "Minicurso"],
+    horizontal=True,
+)
 
 if event_type == "Evento":
     template_options = ["evento_3instituicoes"]
@@ -58,12 +63,11 @@ event_name = st.text_input("Nome do Evento", value="Evento1")
 if event_type == "Minicurso":
     professor = st.text_input("Ministrante do Minicurso/Curso", value="Professor")
 hour = st.text_input("Carga horária (ex.: 8 horas)", value="0 horas")
-locale.setlocale(locale.LC_TIME, "pt_BR.UTF-8")
+date = st.date_input("Insira a data do evento", value=datetime.today())
+formatted_date = date.strftime("%d de %B de %Y")
 date = st.date_input(
     "Insira a data do evento", value="today", format="DD/MM/YYYY"
 ).strftime("%d de %B de %Y")
-
-
 
 
 if template and planilha:
@@ -85,48 +89,26 @@ if template and planilha:
             novo_cert = img_template.copy()
             draw = ImageDraw.Draw(novo_cert)
             # Puts the name on the template
-            draw_bounding_box(
-                draw, 
-                novo_cert, 
-                nome, 
-                name_font, 
-                375
-            )
+            draw_bounding_box(draw, novo_cert, nome, name_font, 375)
 
             # Puts the event on the template
-            draw_bounding_box(
-                draw, 
-                novo_cert, 
-                event_name, 
-                event_font, 
-                520
-            )
-            
+            draw_bounding_box(draw, novo_cert, event_name, event_font, 520)
+
             if event_type == "Minicurso":
-                draw_bounding_box(
-                draw, 
-                novo_cert, 
-                professor, 
-                professor_font, 
-                642
-            )
-            
+                draw_bounding_box(draw, novo_cert, professor, professor_font, 642)
+
             # Carga horária
             draw_bounding_box(
-                draw, 
-                novo_cert, 
-                hour, 
-                hour_font, 
-                635 if event_type == "Evento" else 763
+                draw, novo_cert, hour, hour_font, 635 if event_type == "Evento" else 763
             )
-            
+
             full_date = "Niterói, " + date
             draw_bounding_box(
-                draw, 
-                novo_cert, 
-                full_date, 
-                date_font, 
-                698 if event_type == "Evento" else 826
+                draw,
+                novo_cert,
+                full_date,
+                date_font,
+                698 if event_type == "Evento" else 826,
             )
 
             certificates.append(novo_cert)
