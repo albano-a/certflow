@@ -24,7 +24,7 @@ event_type = st.radio(
 )
 
 if event_type == "Evento":
-    template_options = ["evento_3instituicoes"]
+    template_options = ["evento_3instituicoes", "evento_1instituicao"]
 else:
     template_options = ["modelo_minicurso"]
 template = st.selectbox(
