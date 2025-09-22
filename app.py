@@ -24,9 +24,9 @@ event_type = st.radio(
 )
 
 if event_type == "Evento":
-    template_options = ["evento_3instituicoes", "evento_1instituicao"]
+    template_options = ["evento_3instituicoes"]
 else:
-    template_options = ["modelo_minicurso"]
+    template_options = ["modelo_minicurso", "papo_geofisico"]
 template = st.selectbox(
     "Selecione o modelo de certificado:",
     template_options,
@@ -61,7 +61,9 @@ HEIGHT_MINI = ""
 
 event_name = st.text_input("Nome do Evento", value="Evento1")
 if event_type == "Minicurso":
-    professor = st.text_input("Ministrante do Minicurso/Curso", value="Professor")
+    professor = st.text_input(
+        "Ministrante do Minicurso ou Apresentador do Papo Geofísico", value="Professor"
+    )
 hour = st.text_input("Carga horária (ex.: 8 horas)", value="0 horas")
 date = st.date_input("Insira a data do evento", value=datetime.today())
 formatted_date = date.strftime("%d de %B de %Y")
