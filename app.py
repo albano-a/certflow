@@ -1,11 +1,13 @@
-import streamlit as st
-import pandas as pd
-from PIL import Image, ImageDraw, ImageFont
+import locale
 import os
 import zipfile
 from datetime import datetime
 from io import BytesIO
-import locale
+
+import pandas as pd
+import streamlit as st
+from PIL import Image, ImageDraw, ImageFont
+
 from functions import draw_bounding_box
 
 st.set_page_config(
@@ -18,13 +20,13 @@ st.title("Gerador de Certificados")
 st.subheader("📄 Modelo de certificado")
 
 event_type = st.radio(
-    "É um evento (Papo Geofísico, Mesa redonda) ou um Minicurso?",
+    "É um evento ou um Minicurso/Papo Geofísico?",
     ["Evento", "Minicurso"],
     horizontal=True,
 )
 
 if event_type == "Evento":
-    template_options = ["evento_3instituicoes"]
+    template_options = ["evento_1instituicao", "evento_3instituicoes"]
 else:
     template_options = ["modelo_minicurso", "papo_geofisico"]
 template = st.selectbox(
@@ -36,7 +38,7 @@ template = "templates/" + template + ".png"
 if template:
     with st.expander("Preview do modelo"):
         st.subheader("Preview do Modelo de Certificado")
-        st.image(template, caption="Modelo de Certificado", use_container_width=True)
+        st.image(template, caption="Modelo de Certificado", width="stretch")
 
 
 planilha = st.file_uploader("Planilha de participantes (.xlsx)", type=["xlsx"])
@@ -135,7 +137,7 @@ if template and planilha:
             st.image(
                 certificates[current_idx],
                 caption=f"Certificado de {df.iloc[current_idx]['nome']}",
-                use_container_width=True,
+                width="stretch",
             )
 
         # Create a ZIP file for download
