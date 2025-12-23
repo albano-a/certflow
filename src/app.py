@@ -1,21 +1,20 @@
-import os
-import zipfile
+import locale
+
 from datetime import datetime
-from io import BytesIO
-
-import pandas as pd
+from scripts.utils import (
+    capitalize_mes,
+    preview_planilha,
+    gerar_certificados,
+    criar_zip,
+)
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
-from scripts.draw import draw_bounding_box
 
 
+# --- Streamlit UI ---
 st.set_page_config(
     page_title="Gerador de Certificados", layout="centered", page_icon="🦈"
 )
-
-
 st.title("Gerador de Certificados")
-
 st.subheader("📄 Modelo de certificado")
 
 event_type = st.radio(
@@ -24,10 +23,11 @@ event_type = st.radio(
     horizontal=True,
 )
 
-if event_type == "Evento":
-    template_options = ["evento_1instituicao", "evento_3instituicoes"]
-else:
-    template_options = ["modelo_minicurso", "papo_geofisico"]
+template_options = (
+    ["Evento - Único", "Evento - 3 Instituições", "Evento - Único - Vários Dias"]
+    if event_type == "Evento"
+    else ["Minicurso", "Minicurso - Vários Dias", "Papo Geofísico"]
+)
 template = st.selectbox(
     "Selecione o modelo de certificado:",
     template_options,
@@ -39,116 +39,115 @@ if template:
         st.subheader("Preview do Modelo de Certificado")
         st.image(template, caption="Modelo de Certificado")
 
-
-planilha = st.file_uploader("Planilha de participantes (.xlsx)", type=["xlsx"])
-
-if planilha:
-    with st.expander("Preview da planilha"):
-        try:
-            df_preview = pd.read_excel(planilha)
-            df_preview = df_preview.drop_duplicates()
-            st.dataframe(df_preview)
-        except Exception as e:
-            st.error(f"Erro ao carregar a planilha: {e}")
-
-
-title_font = "fonts/CormorantGaramond-Bold.ttf"
-text_font = "fonts/LibreBaskerville-Bold.ttf"
-date_font = "fonts/LibreBaskerville-Regular.ttf"
-name_font = "fonts/AlexBrush-Regular.ttf"
-
-HEIGHT_EVENT = ""
-HEIGHT_MINI = ""
-
-event_name = st.text_input("Nome do Evento", value="Evento1")
+event_name = st.text_input(
+    "Nome do Evento",
+    placeholder="Ex.: Semana da Geofísica, Mesa Redonda, Workshop...",
+    max_chars=100,
+)
+professor = ""
 if event_type == "Minicurso":
     professor = st.text_input(
         "Ministrante do Minicurso ou Apresentador do Papo Geofísico", value="Professor"
     )
-hour = st.text_input("Carga horária (ex.: 8 horas)", value="0 horas")
-date = st.date_input("Insira a data do evento", value=datetime.today())
-formatted_date = date.strftime("%d de %B de %Y")
-date = st.date_input(
-    "Insira a data do evento", value="today", format="DD/MM/YYYY"
-).strftime("%d de %B de %Y")
+hour = st.text_input(
+    "Carga horária (ex.: 8 horas)", placeholder="Ex.: 4 horas, 2 horas...", max_chars=20
+)
+
+start_end_date = st.radio(
+    "O evento ocorreu em um único dia ou em vários dias?",
+    ["Único dia", "Vários dias"],
+    index=0,
+    horizontal=True,
+)
+date, start_date, end_date = None, None, None
+if start_end_date == "Único dia":
+    date = st.date_input(
+        "Data do evento",
+        value=datetime.today(),
+        format="DD/MM/YYYY",
+        max_value=datetime.today(),
+    ).strftime("%d de %B de %Y")
+else:
+    cols = st.columns(2)
+    locale.setlocale(locale.LC_TIME, "pt_BR.UTF-8")
+    with cols[0]:
+        start_date = capitalize_mes(
+            st.date_input(
+                "Data de início do evento",
+                value=datetime.today(),
+                format="DD/MM/YYYY",
+            ).strftime("%d de %B")
+        )
+    with cols[1]:
+
+        end_date = capitalize_mes(
+            st.date_input(
+                "Data final do evento",
+                value=datetime.today(),
+                format="DD/MM/YYYY",
+            ).strftime("%d de %B")
+        )
+
+planilha = st.file_uploader("Planilha de participantes (.xlsx)", type=["xlsx"])
+df = None
+if planilha:
+    with st.expander("Preview da planilha"):
+        df = preview_planilha(planilha)
 
 
-if template and planilha:
+POSITIONS = {
+    "Evento": {
+        "NAME_HEIGHT": 375,
+        "EVENT_NAME_HEIGHT": 520,
+        "PROFESSOR_MINI_HEIGHT": None,
+        "CARGA_HORARIA_HEIGHT": 635,
+        "DATA_VARIOS_DIAS": 626,
+        "CARGA_HORARIA_VARIOS_DIAS": 732,
+        "LOCATION_HEIGHT": 698,
+        "LOCATION_HEIGHT_VARIOS_DIAS": 809,
+    },
+    "Minicurso": {
+        "NAME_HEIGHT": 375,
+        "EVENT_NAME_HEIGHT": 520,
+        "PROFESSOR_MINI_HEIGHT": 642,
+        "CARGA_HORARIA_HEIGHT": 763,
+        "DATA_VARIOS_DIAS": 701,
+        "CARGA_HORARIA_VARIOS_DIAS": 822,
+        "LOCATION_HEIGHT": 826,
+        "LOCATION_HEIGHT_VARIOS_DIAS": 885,
+    },
+}
+
+if template and df is not None:
     with st.expander("Gerar certificados"):
-        df = pd.read_excel(planilha)
-        df = df.drop_duplicates()
-        img_template = Image.open(template)
-        name_font = ImageFont.truetype(name_font, size=85)
-        event_font = ImageFont.truetype(text_font, size=40)
-        hour_font = ImageFont.truetype(text_font, size=40)
-        date_font = ImageFont.truetype(date_font, size=25)
-        professor_font = ImageFont.truetype(text_font, size=40)
-
-        certificates = []
-        preview_image = None
-
-        for idx, row in df.iterrows():
-            nome = row["nome"]
-            novo_cert = img_template.copy()
-            draw = ImageDraw.Draw(novo_cert)
-            # Puts the name on the template
-            draw_bounding_box(draw, novo_cert, nome, name_font, 375)
-
-            # Puts the event on the template
-            draw_bounding_box(draw, novo_cert, event_name, event_font, 520)
-
-            if event_type == "Minicurso":
-                draw_bounding_box(draw, novo_cert, professor, professor_font, 642)
-
-            # Carga horária
-            draw_bounding_box(
-                draw, novo_cert, hour, hour_font, 635 if event_type == "Evento" else 763
-            )
-
-            full_date = "Niterói, " + date
-            draw_bounding_box(
-                draw,
-                novo_cert,
-                full_date,
-                date_font,
-                698 if event_type == "Evento" else 826,
-            )
-
-            certificates.append(novo_cert)
-
-            if idx == 0:  # Save the first certificate for preview
-                preview_image = novo_cert.copy()
-
+        certificates, preview_image = gerar_certificados(
+            df,
+            template,
+            POSITIONS,
+            event_type,
+            event_name,
+            professor,
+            hour,
+            start_end_date,
+            date,
+            start_date,
+            end_date,
+        )
         st.success(f"{len(df)} certificados gerados com sucesso!")
 
-        # Display preview of the first certificate
         if certificates:
             st.subheader("Preview dos Certificados")
-
-            # Controles do carrossel
             current_idx = st.selectbox(
                 "Selecione o certificado:",
                 range(len(certificates)),
                 format_func=lambda x: f"{df.iloc[x]['nome']} ({x + 1}/{len(certificates)})",
             )
-
-            # Exibir certificado atual
             st.image(
                 certificates[current_idx],
                 caption=f"Certificado de {df.iloc[current_idx]['nome']}",
             )
 
-        # Create a ZIP file for download
-        zip_buffer = BytesIO()
-        with zipfile.ZipFile(zip_buffer, "w") as zipf:
-            for idx, cert in enumerate(certificates):
-                nome = df.iloc[idx]["nome"]
-                nome_arquivo = f"{nome.replace(' ', '_')}.pdf"
-                pdf_buffer = BytesIO()
-                cert.convert("RGB").save(pdf_buffer, "PDF")
-                zipf.writestr(nome_arquivo, pdf_buffer.getvalue())
-
-        zip_buffer.seek(0)
+        zip_buffer = criar_zip(certificates, df)
         st.download_button(
             label="Baixar todos os certificados (ZIP)",
             data=zip_buffer,
