@@ -6,7 +6,7 @@ from io import BytesIO
 import pandas as pd
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
-from scripts import draw_bounding_box
+from scripts.draw import draw_bounding_box
 
 
 st.set_page_config(
